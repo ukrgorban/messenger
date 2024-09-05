@@ -7,15 +7,19 @@ services:
         ports:
             - '5432:5432'
         environment:
-            POSTGRES_DB: mydatabase
-            POSTGRES_USER: myuser
-            POSTGRES_PASSWORD: mypassword
+            POSTGRES_DB: example
+            POSTGRES_USER: postgres
+            POSTGRES_PASSWORD: marcus
+        volumes:
+            - pgdata:/var/lib/postgresql/data # збереження даних
+            # Прибираємо виконання SQL-скриптів звідси
+            # - ./app/db:/docker-entrypoint-initdb.d
 
     nodejs:
         image: node:22-alpine
         container_name: nodejs_container
         ports:
-            - '5000:5000'
+            - '8000:8000'
         working_dir: /app
         volumes:
             - type: bind
@@ -24,7 +28,7 @@ services:
         depends_on:
             - postgres
         command: sh -c "npm install && npm run dev"
-    
+
     pgadmin:
         image: dpage/pgadmin4
         container_name: pgadmin_container
@@ -35,3 +39,16 @@ services:
             PGADMIN_DEFAULT_PASSWORD: admin
         depends_on:
             - postgres
+
+    db_setup:
+        image: postgres:latest
+        container_name: db_setup_container
+        depends_on:
+            - postgres
+        volumes:
+            - ./app/db:/app/db
+        working_dir: /app/db
+        entrypoint: ['sh', './setup.sh']
+
+volumes:
+    pgdata:
