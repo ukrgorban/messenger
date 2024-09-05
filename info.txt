@@ -1,4 +1,5 @@
 - docker-compose up -d && docker-compose logs -f nodejs
+- docker-compose down -v // очищення всіх даних і таблиць
 
 - pgAdmin
     http://127.0.0.1:5050
