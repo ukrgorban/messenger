@@ -1,51 +1,23 @@
 'use strict';
 
 const http = require('node:http');
-const pg = require('pg');
-const hash = require('./hash.js');
-const receiveArgs = require('./body.js');
+const db = require('./db.js');
 
 const PORT = 8000;
 
-const pool = new pg.Pool({
-    host: 'postgres',
-    port: 5432,
-    database: 'example',
-    user: 'postgres',
-    password: 'marcus',
-});
-
 const routing = {
-    test: {
-        get(id) {
-            return { rows: { a: 1 } };
-        },
-    },
-    user: {
-        async get(id) {
-            if (!id) return pool.query('SELECT id, login FROM users');
-            const sql = 'SELECT id, login FROM users WHERE id = $1';
-            return await pool.query(sql, [id]);
-        },
+    user: db('users'),
+    country: db('country'),
+    city: db('city'),
+};
 
-        async post({ login, password }) {
-            const sql = 'INSERT INTO users (login, password) VALUES ($1, $2)';
-            const passwordHash = await hash(password);
-            return await pool.query(sql, [login, passwordHash]);
-        },
+const crud = { get: 'read', post: 'create', put: 'update', delete: 'delete' };
 
-        async put(id, { login, password }) {
-            const sql =
-                'UPDATE users SET login = $1, password = $2 WHERE id = $3';
-            const passwordHash = await hash(password);
-            return await pool.query(sql, [login, passwordHash, id]);
-        },
-
-        async delete(id) {
-            const sql = 'DELETE FROM users WHERE id = $1';
-            return await pool.query(sql, [id]);
-        },
-    },
+const receiveArgs = async (req) => {
+    const buffers = [];
+    for await (const chunk of req) buffers.push(chunk);
+    const data = Buffer.concat(buffers).toString();
+    return JSON.parse(data);
 };
 
 http.createServer(async (req, res) => {
@@ -53,7 +25,8 @@ http.createServer(async (req, res) => {
     const [name, id] = url.substring(1).split('/');
     const entity = routing[name];
     if (!entity) return void res.end('Not found');
-    const handler = entity[method.toLowerCase()];
+    const procedure = crud[method.toLowerCase()];
+    const handler = entity[procedure];
     if (!handler) return void res.end('Not found');
     const src = handler.toString();
     const signature = src.substring(0, src.indexOf(')'));
