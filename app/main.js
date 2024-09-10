@@ -6,7 +6,7 @@ const db = require('./db.js');
 const PORT = 8000;
 
 const routing = {
-    user: db('users'),
+    user: require('./user.js'),
     country: db('country'),
     city: db('city'),
 };
