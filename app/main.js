@@ -1,13 +1,11 @@
 'use strict';
 
-const express = require('express');
-const bodyParser = require('body-parser');
+const http = require('node:http');
 const pg = require('pg');
 const hash = require('./hash.js');
+const receiveArgs = require('./body.js');
 
 const PORT = 8000;
-
-const app = express();
 
 const pool = new pg.Pool({
     host: 'postgres',
@@ -17,66 +15,54 @@ const pool = new pg.Pool({
     password: 'marcus',
 });
 
-app.use(bodyParser.json());
+const routing = {
+    test: {
+        get(id) {
+            return { rows: { a: 1 } };
+        },
+    },
+    user: {
+        async get(id) {
+            if (!id) return pool.query('SELECT id, login FROM users');
+            const sql = 'SELECT id, login FROM users WHERE id = $1';
+            return await pool.query(sql, [id]);
+        },
 
-app.use(bodyParser.urlencoded({ extended: true }));
+        async post({ login, password }) {
+            const sql = 'INSERT INTO users (login, password) VALUES ($1, $2)';
+            const passwordHash = await hash(password);
+            return await pool.query(sql, [login, passwordHash]);
+        },
 
-app.get('/', (req, res) => {
-    console.log(`${req.socket.remoteAddress} GET /`);
-    res.status(200).json({ id: 1 });
-});
+        async put(id, { login, password }) {
+            const sql =
+                'UPDATE users SET login = $1, password = $2 WHERE id = $3';
+            const passwordHash = await hash(password);
+            return await pool.query(sql, [login, passwordHash, id]);
+        },
 
-app.get('/user', (req, res) => {
-    console.log(`${req.socket.remoteAddress} GET /user`);
-    pool.query('SELECT * FROM users', (err, data) => {
-        if (err) throw err;
-        res.status(200).json(data.rows);
-    });
-});
+        async delete(id) {
+            const sql = 'DELETE FROM users WHERE id = $1';
+            return await pool.query(sql, [id]);
+        },
+    },
+};
 
-app.post('/user', async (req, res) => {
-    const { login, password } = req.body;
-    const user = JSON.stringify({ login, password });
-    console.log(`${req.socket.remoteAddress} POST /user ${user}`);
-    const sql = 'INSERT INTO users (login, password) VALUES ($1, $2)';
-    const passwordHash = await hash(password);
-    pool.query(sql, [login, passwordHash], (err, data) => {
-        if (err) throw err;
-        res.status(201).json({ created: data.insertId });
-    });
-});
+http.createServer(async (req, res) => {
+    const { method, url, socket } = req;
+    const [name, id] = url.substring(1).split('/');
+    const entity = routing[name];
+    if (!entity) return void res.end('Not found');
+    const handler = entity[method.toLowerCase()];
+    if (!handler) return void res.end('Not found');
+    const src = handler.toString();
+    const signature = src.substring(0, src.indexOf(')'));
+    const args = [];
+    if (signature.includes('(id')) args.push(id);
+    if (signature.includes('{')) args.push(await receiveArgs(req));
+    console.log(`${socket.remoteAddress} ${method} ${url}`);
+    const result = await handler(...args);
+    res.end(JSON.stringify(result.rows));
+}).listen(PORT);
 
-app.get('/user/:id', (req, res) => {
-    const id = parseInt(req.params.id, 10);
-    console.log(`${req.socket.remoteAddress} GET /user/${id}`);
-    pool.query('SELECT * FROM users WHERE id = $1', [id], (err, data) => {
-        if (err) throw err;
-        res.status(200).json(data.rows);
-    });
-});
-
-app.put('/user/:id', async (req, res) => {
-    const id = parseInt(req.params.id);
-    const { login, password } = req.body;
-    const user = JSON.stringify({ login, password });
-    console.log(`${req.socket.remoteAddress} PUT /user/${id} ${user}`);
-    const sql = 'UPDATE users SET login = $1, password = $2 WHERE id = $3';
-    const passwordHash = await hash(password);
-    pool.query(sql, [login, passwordHash, id], (err, data) => {
-        if (err) throw err;
-        res.status(201).json({ modified: data.insertId });
-    });
-});
-
-app.delete('/user/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    console.log(`${req.socket.remoteAddress} DELETE /user/${id}`);
-    pool.query('DELETE FROM users WHERE id = $1', [id], (err, data) => {
-        if (err) throw err;
-        res.status(200).json({ deleted: data.insertId });
-    });
-});
-
-app.listen(PORT, () => {
-    console.log(`Listen on port ${PORT}`);
-});
+console.log(`Listen on port ${PORT}`);
