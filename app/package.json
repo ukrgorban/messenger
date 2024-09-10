@@ -7,7 +7,8 @@
         "dev": "nodemon main.js"
     },
     "dependencies": {
-        "pg": "^8.7.1"
+        "pg": "^8.8.0",
+        "ws": "^8.12.0"
     },
     "devDependencies": {
         "nodemon": "^2.0.15"

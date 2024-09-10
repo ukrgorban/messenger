@@ -1,10 +1,8 @@
 'use strict';
 
-const http = require('node:http');
+const server = require('./ws.js');
+const staticServer = require('./static.js');
 const db = require('./db.js');
-const server = require('./http.js');
-
-const PORT = 8000;
 
 const routing = {
     user: require('./user.js'),
@@ -12,6 +10,5 @@ const routing = {
     city: db('city'),
 };
 
-const crud = { get: 'read', post: 'create', put: 'update', delete: 'delete' };
-
-server(routing, PORT);
+staticServer('./static', 8000);
+server(routing, 8001);
