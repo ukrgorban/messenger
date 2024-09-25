@@ -12,10 +12,10 @@ module.exports = {
         displayErrors: false,
     },
     db: {
-        host: '127.0.0.1',
+        host: 'postgres',
         port: 5432,
         database: 'example',
-        user: 'marcus',
+        user: 'postgres',
         password: 'marcus',
     },
 };
