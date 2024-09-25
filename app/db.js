@@ -2,24 +2,17 @@
 
 const pg = require('pg');
 
-const pool = new pg.Pool({
-    host: 'postgres',
-    port: 5432,
-    database: 'example',
-    user: 'postgres',
-    password: 'marcus',
-});
-
-module.exports = (table) => ({
+const crud = (pool) => (table) => ({
     async query(sql, args) {
-        return await pool.query(sql, args);
+        const result = await pool.query(sql, args);
+        return result.rows;
     },
 
     async read(id, fields = ['*']) {
         const names = fields.join(', ');
         const sql = `SELECT ${names} FROM ${table}`;
         if (!id) return pool.query(sql);
-        return await pool.query(`${sql} WHERE id = $1`, [id]);
+        return pool.query(`${sql} WHERE id = $1`, [id]);
     },
 
     async create({ ...record }) {
@@ -34,7 +27,7 @@ module.exports = (table) => ({
         const fields = '"' + keys.join('", "') + '"';
         const params = nums.join(', ');
         const sql = `INSERT INTO "${table}" (${fields}) VALUES (${params})`;
-        return await pool.query(sql, data);
+        return pool.query(sql, data);
     },
 
     async update(id, { ...record }) {
@@ -49,11 +42,13 @@ module.exports = (table) => ({
         const delta = updates.join(', ');
         const sql = `UPDATE ${table} SET ${delta} WHERE id = $${++i}`;
         data.push(id);
-        return await pool.query(sql, data);
+        return pool.query(sql, data);
     },
 
     async delete(id) {
-        const sql = `DELETE FROM ${table} WHERE id = $1`;
-        return await pool.query(sql, [id]);
+        const sql = 'DELETE FROM ${table} WHERE id = $1';
+        return pool.query(sql, [id]);
     },
 });
+
+module.exports = (options) => crud(new pg.Pool(options));
