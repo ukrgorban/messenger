@@ -26,7 +26,7 @@ const crud = (pool) => (table) => ({
         }
         const fields = '"' + keys.join('", "') + '"';
         const params = nums.join(', ');
-        const sql = `INSERT INTO "${table}" (${fields}) VALUES (${params})`;
+        const sql = `INSERT INTO "${table}" (${fields}) VALUES (${params}) RETURNING id`;
         return pool.query(sql, data);
     },
 
@@ -40,13 +40,13 @@ const crud = (pool) => (table) => ({
             updates[i] = `${key} = $${++i}`;
         }
         const delta = updates.join(', ');
-        const sql = `UPDATE ${table} SET ${delta} WHERE id = $${++i}`;
+        const sql = `UPDATE ${table} SET ${delta} WHERE id = $${++i} RETURNING id`;
         data.push(id);
         return pool.query(sql, data);
     },
 
     async delete(id) {
-        const sql = 'DELETE FROM ${table} WHERE id = $1';
+        const sql = `DELETE FROM ${table} WHERE id = $1 RETURNING id`;
         return pool.query(sql, [id]);
     },
 });
