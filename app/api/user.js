@@ -1,6 +1,5 @@
 ({
     async read(id) {
-        console.debug({ db });
         return await db('users').read(id, ['id', 'login']);
     },
 

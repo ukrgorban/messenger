@@ -2,7 +2,7 @@
 
 const { Server } = require('ws');
 
-module.exports = (routing, port) => {
+module.exports = (routing, port, console) => {
     const ws = new Server({ port });
 
     ws.on('connection', (connection, req) => {
@@ -25,9 +25,9 @@ module.exports = (routing, port) => {
             console.log(`${ip} ${name}.${method}(${parameters})`);
             try {
                 const result = await handler(...args);
-                connection.send(JSON.stringify(result.rows), { binary: false });
+                connection.send(JSON.stringify(result), { binary: false });
             } catch (err) {
-                console.dir({ err });
+                console.error(err);
                 connection.send('"Server error"', { binary: false });
             }
         });
